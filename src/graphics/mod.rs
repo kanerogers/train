@@ -6,6 +6,7 @@ use renderer::Renderer;
 
 mod context;
 mod core;
+mod pipeline;
 mod renderer;
 mod swapchain;
 
@@ -32,6 +33,6 @@ impl Graphics {
     }
 
     pub(crate) fn draw(&self) {
-        // println!("Drawing!");
+        self.renderer.draw();
     }
 }

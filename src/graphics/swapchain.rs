@@ -2,11 +2,13 @@ use ash::vk;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
 pub struct Swapchain {
-    surface_handle: vk::SurfaceKHR,
-    surface_fn: ash::khr::surface::Instance,
-    swapchain_handle: vk::SwapchainKHR,
-    swapchain_fn: ash::khr::swapchain::Device,
-    image_views: Vec<vk::ImageView>,
+    pub surface_handle: vk::SurfaceKHR,
+    pub surface_fn: ash::khr::surface::Instance,
+    pub swapchain_handle: vk::SwapchainKHR,
+    pub swapchain_fn: ash::khr::swapchain::Device,
+    pub image_views: Vec<vk::ImageView>,
+    pub extent: vk::Extent2D,
+    pub format: vk::Format,
 }
 
 impl Swapchain {
@@ -32,9 +34,9 @@ impl Swapchain {
         }
         .unwrap();
 
-        let preferences = [vk::Format::B8G8R8A8_SRGB, vk::Format::R8G8B8A8_SRGB];
+        let format_preferences = [vk::Format::B8G8R8A8_SRGB, vk::Format::R8G8B8A8_SRGB];
 
-        let swapchain_format = *preferences
+        let format = *format_preferences
             .iter()
             .find(|&&f| surface_formats.iter().any(|sf| sf.format == f))
             .expect("Desired swapchain format unavailable");
@@ -56,7 +58,7 @@ impl Swapchain {
                 &vk::SwapchainCreateInfoKHR::default()
                     .surface(surface_handle)
                     .min_image_count(capabilities.min_image_count + 1)
-                    .image_format(swapchain_format)
+                    .image_format(format)
                     .image_extent(extent)
                     .image_color_space(vk::ColorSpaceKHR::SRGB_NONLINEAR)
                     .image_array_layers(1)
@@ -82,7 +84,7 @@ impl Swapchain {
                         &vk::ImageViewCreateInfo::default()
                             .view_type(vk::ImageViewType::TYPE_2D)
                             .image(image)
-                            .format(swapchain_format)
+                            .format(format)
                             .subresource_range(
                                 vk::ImageSubresourceRange::default()
                                     .aspect_mask(vk::ImageAspectFlags::COLOR)
@@ -104,6 +106,8 @@ impl Swapchain {
             swapchain_handle,
             swapchain_fn,
             image_views,
+            extent,
+            format,
         }
     }
 }

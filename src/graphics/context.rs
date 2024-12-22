@@ -4,8 +4,10 @@ use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use super::swapchain::Swapchain;
 
 pub struct Context {
-    device: ash::Device,
-    swapchain: Swapchain,
+    pub device: ash::Device,
+    pub swapchain: Swapchain,
+    pub command_pool: vk::CommandPool,
+    pub draw_command_buffer: vk::CommandBuffer,
 }
 
 impl Context {
@@ -23,14 +25,41 @@ impl Context {
                         .queue_priorities(&[1.0])])
                     .enabled_features(
                         &vk::PhysicalDeviceFeatures::default().fill_mode_non_solid(true),
+                    )
+                    .push_next(
+                        &mut vk::PhysicalDeviceVulkan13Features::default().dynamic_rendering(true),
                     ),
                 None,
             )
         }
         .unwrap();
 
+        let command_pool = unsafe {
+            device.create_command_pool(
+                &vk::CommandPoolCreateInfo::default()
+                    .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER),
+                None,
+            )
+        }
+        .unwrap();
+
+        let draw_command_buffer = unsafe {
+            device.allocate_command_buffers(
+                &vk::CommandBufferAllocateInfo::default()
+                    .command_pool(command_pool)
+                    .command_buffer_count(1)
+                    .level(vk::CommandBufferLevel::PRIMARY),
+            )
+        }
+        .unwrap()[0];
+
         let swapchain = Swapchain::new(&device, core, window, vk::SwapchainKHR::null());
 
-        Self { device, swapchain }
+        Self {
+            device,
+            swapchain,
+            command_pool,
+            draw_command_buffer,
+        }
     }
 }
