@@ -1,7 +1,4 @@
 use ash::vk;
-use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
-
-use super::swapchain::Swapchain;
 
 pub struct Context {
     pub device: ash::Device,
@@ -39,6 +36,7 @@ impl Context {
         let command_pool = unsafe {
             device.create_command_pool(
                 &vk::CommandPoolCreateInfo::default()
+                    .queue_family_index(0)
                     .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER),
                 None,
             )
@@ -49,8 +47,7 @@ impl Context {
             device.allocate_command_buffers(
                 &vk::CommandBufferAllocateInfo::default()
                     .command_pool(command_pool)
-                    .command_buffer_count(1)
-                    .level(vk::CommandBufferLevel::PRIMARY),
+                    .command_buffer_count(1),
             )
         }
         .unwrap()[0];

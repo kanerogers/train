@@ -6,6 +6,7 @@ use super::{
     context::Context,
     pipeline::Pipeline,
     swapchain::{Drawable, Swapchain},
+    FULL_IMAGE,
 };
 
 pub struct Renderer {
@@ -47,17 +48,15 @@ impl Renderer {
         let drawable = self.begin_rendering();
         self.pipeline.draw(drawable);
         self.end_rendering(drawable);
+        self.swapchain.present(
+            drawable,
+            self.context.graphics_queue,
+            self.rendering_complete,
+        );
     }
 
     fn begin_rendering(&self) -> Drawable {
         let device = &self.context.device;
-        unsafe {
-            device.begin_command_buffer(
-                self.context.draw_command_buffer,
-                &vk::CommandBufferBeginInfo::default(),
-            )
-        }
-        .unwrap();
 
         // Block the CPU until we're done rendering the previous frame
         unsafe {
@@ -65,6 +64,12 @@ impl Renderer {
                 .wait_for_fences(&[self.fence], true, u64::MAX)
                 .unwrap();
             device.reset_fences(&[self.fence]).unwrap();
+            device
+                .begin_command_buffer(
+                    self.context.draw_command_buffer,
+                    &vk::CommandBufferBeginInfo::default(),
+                )
+                .unwrap();
         }
 
         // Get a `Drawable` from the swapchain
@@ -79,14 +84,22 @@ impl Renderer {
 
         unsafe {
             // First, transition the color attachment into the present state
-
             device.cmd_pipeline_barrier2(
                 command_buffer,
                 &vk::DependencyInfo::default().image_memory_barriers(&[
-                    vk::ImageMemoryBarrier2::default().image(swapchain_image),
+                    vk::ImageMemoryBarrier2::default()
+                        .subresource_range(FULL_IMAGE)
+                        .image(swapchain_image)
+                        .src_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
+                        .src_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+                        .dst_access_mask(vk::AccessFlags2::NONE)
+                        .dst_stage_mask(vk::PipelineStageFlags2::BOTTOM_OF_PIPE)
+                        .old_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                        .new_layout(vk::ImageLayout::PRESENT_SRC_KHR),
                 ]),
             );
 
+            // Next, end the command buffer
             device.end_command_buffer(command_buffer).unwrap();
             device
                 .queue_submit2(

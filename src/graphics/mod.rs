@@ -39,3 +39,11 @@ impl Graphics {
         self.renderer.draw();
     }
 }
+
+const FULL_IMAGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
+    aspect_mask: vk::ImageAspectFlags::COLOR,
+    base_mip_level: 0,
+    level_count: vk::REMAINING_MIP_LEVELS,
+    base_array_layer: 0,
+    layer_count: vk::REMAINING_ARRAY_LAYERS,
+};

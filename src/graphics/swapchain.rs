@@ -125,17 +125,17 @@ impl Swapchain {
     pub fn get_drawable(&self) -> Drawable {
         let (index, optimal) = unsafe {
             self.swapchain_fn
-                .acquire_next_image2(
-                    &vk::AcquireNextImageInfoKHR::default()
-                        .timeout(u64::MAX)
-                        .semaphore(self.image_available)
-                        .swapchain(self.swapchain_handle),
+                .acquire_next_image(
+                    self.swapchain_handle,
+                    u64::MAX,
+                    self.image_available,
+                    vk::Fence::null(),
                 )
                 .unwrap()
         };
 
         if !optimal {
-            eprintln!("Swapchain is not optimal! This isn't handled yet");
+            // eprintln!("Swapchain is not optimal! This isn't handled yet");
         }
 
         Drawable {

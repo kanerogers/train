@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use ash::vk;
 
-use super::{context::Context, swapchain::Drawable};
+use super::{context::Context, swapchain::Drawable, FULL_IMAGE};
 
 pub struct Pipeline {
     handle: vk::Pipeline,
@@ -34,6 +34,15 @@ impl Pipeline {
                             .stage(vk::ShaderStageFlags::FRAGMENT),
                     ])
                     .vertex_input_state(&vk::PipelineVertexInputStateCreateInfo::default())
+                    .input_assembly_state(
+                        &vk::PipelineInputAssemblyStateCreateInfo::default()
+                            .topology(vk::PrimitiveTopology::TRIANGLE_LIST),
+                    )
+                    .viewport_state(
+                        &vk::PipelineViewportStateCreateInfo::default()
+                            .scissor_count(1)
+                            .viewport_count(1),
+                    )
                     .dynamic_state(
                         &vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&[
                             vk::DynamicState::SCISSOR,
@@ -42,13 +51,14 @@ impl Pipeline {
                     )
                     .rasterization_state(
                         &vk::PipelineRasterizationStateCreateInfo::default()
-                            .cull_mode(vk::CullModeFlags::BACK)
+                            .cull_mode(vk::CullModeFlags::NONE)
                             .polygon_mode(vk::PolygonMode::FILL)
                             .line_width(1.0),
                     )
-                    .input_assembly_state(
-                        &vk::PipelineInputAssemblyStateCreateInfo::default()
-                            .topology(vk::PrimitiveTopology::TRIANGLE_LIST),
+                    .depth_stencil_state(
+                        &vk::PipelineDepthStencilStateCreateInfo::default()
+                            .depth_write_enable(false)
+                            .depth_bounds_test_enable(false),
                     )
                     .color_blend_state(
                         &vk::PipelineColorBlendStateCreateInfo::default().attachments(&[
@@ -62,7 +72,6 @@ impl Pipeline {
                             .rasterization_samples(vk::SampleCountFlags::TYPE_1),
                     )
                     .layout(layout)
-                    .render_pass(vk::RenderPass::null())
                     .push_next(
                         &mut vk::PipelineRenderingCreateInfo::default()
                             .color_attachment_formats(&[format]),
@@ -84,6 +93,21 @@ impl Pipeline {
         let command_buffer = self.context.draw_command_buffer;
         let render_area = drawable.extent;
         unsafe {
+            // First, transition the color attachment into the present state
+            device.cmd_pipeline_barrier2(
+                command_buffer,
+                &vk::DependencyInfo::default().image_memory_barriers(&[
+                    vk::ImageMemoryBarrier2::default()
+                        .subresource_range(FULL_IMAGE)
+                        .image(drawable.image)
+                        .src_access_mask(vk::AccessFlags2::NONE)
+                        .src_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+                        .dst_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
+                        .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+                        .old_layout(vk::ImageLayout::UNDEFINED)
+                        .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL),
+                ]),
+            );
             device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.handle);
             device.cmd_set_scissor(command_buffer, 0, &[render_area.into()]);
             device.cmd_set_viewport(
@@ -97,16 +121,20 @@ impl Pipeline {
                 command_buffer,
                 &vk::RenderingInfo::default()
                     .render_area(render_area.into())
+                    .layer_count(1)
                     .color_attachments(&[vk::RenderingAttachmentInfo::default()
                         .image_view(drawable.view)
+                        .image_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                        .load_op(vk::AttachmentLoadOp::CLEAR)
+                        .store_op(vk::AttachmentStoreOp::STORE)
                         .clear_value(vk::ClearValue {
                             color: vk::ClearColorValue {
-                                float32: [1.0, 1.0, 1.0, 1.0],
+                                float32: [0.1, 0.2, 1.0, 1.0],
                             },
                         })]),
             );
 
-            device.cmd_draw(command_buffer, 6, 1, 0, 0);
+            device.cmd_draw(command_buffer, 3, 1, 0, 0);
             device.cmd_end_rendering(command_buffer);
         }
     }
