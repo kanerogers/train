@@ -1,8 +1,10 @@
 use core::Core;
 use std::sync::Arc;
 
+use ash::vk;
 use context::Context;
 use renderer::Renderer;
+use swapchain::Swapchain;
 
 mod context;
 mod core;
@@ -22,7 +24,8 @@ impl Graphics {
         let core = Core::new(&window);
         let context = Context::new(&core, &window);
         let context = Arc::new(context);
-        let renderer = Renderer::new(context.clone());
+        let swapchain = Swapchain::new(&context.device, &core, &window, vk::SwapchainKHR::null());
+        let renderer = Renderer::new(context.clone(), swapchain);
 
         Graphics {
             core,

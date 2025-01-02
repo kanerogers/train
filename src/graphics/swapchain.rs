@@ -6,9 +6,12 @@ pub struct Swapchain {
     pub surface_fn: ash::khr::surface::Instance,
     pub swapchain_handle: vk::SwapchainKHR,
     pub swapchain_fn: ash::khr::swapchain::Device,
+    pub images: Vec<vk::Image>,
     pub image_views: Vec<vk::ImageView>,
     pub extent: vk::Extent2D,
     pub format: vk::Format,
+    pub current_image_index: u32,
+    image_available: vk::Semaphore,
 }
 
 impl Swapchain {
@@ -75,11 +78,11 @@ impl Swapchain {
         }
         .unwrap();
 
-        let image_views = unsafe { swapchain_fn.get_swapchain_images(swapchain_handle) }
+        let (images, image_views) = unsafe { swapchain_fn.get_swapchain_images(swapchain_handle) }
             .unwrap()
             .into_iter()
             .map(|image| {
-                unsafe {
+                let view = unsafe {
                     device.create_image_view(
                         &vk::ImageViewCreateInfo::default()
                             .view_type(vk::ImageViewType::TYPE_2D)
@@ -96,18 +99,74 @@ impl Swapchain {
                         None,
                     )
                 }
-                .unwrap()
+                .unwrap();
+
+                (image, view)
             })
-            .collect::<Vec<_>>();
+            .unzip();
+
+        let image_available =
+            unsafe { device.create_semaphore(&vk::SemaphoreCreateInfo::default(), None) }.unwrap();
 
         Self {
             surface_handle,
             surface_fn,
             swapchain_handle,
             swapchain_fn,
+            images,
             image_views,
             extent,
             format,
+            current_image_index: 0,
+            image_available,
         }
     }
+
+    pub fn get_drawable(&self) -> Drawable {
+        let (index, optimal) = unsafe {
+            self.swapchain_fn
+                .acquire_next_image2(
+                    &vk::AcquireNextImageInfoKHR::default()
+                        .timeout(u64::MAX)
+                        .semaphore(self.image_available)
+                        .swapchain(self.swapchain_handle),
+                )
+                .unwrap()
+        };
+
+        if !optimal {
+            eprintln!("Swapchain is not optimal! This isn't handled yet");
+        }
+
+        Drawable {
+            image: self.images[index as usize],
+            view: self.image_views[index as usize],
+            ready: self.image_available,
+            index,
+            extent: self.extent,
+        }
+    }
+
+    pub fn present(&self, drawable: Drawable, queue: vk::Queue, rendering_complete: vk::Semaphore) {
+        unsafe {
+            self.swapchain_fn
+                .queue_present(
+                    queue,
+                    &vk::PresentInfoKHR::default()
+                        .wait_semaphores(&[rendering_complete])
+                        .image_indices(&[drawable.index])
+                        .swapchains(&[self.swapchain_handle]),
+                )
+                .unwrap();
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Drawable {
+    pub image: vk::Image,
+    pub view: vk::ImageView,
+    pub ready: vk::Semaphore,
+    pub index: u32,
+    pub extent: vk::Extent2D,
 }

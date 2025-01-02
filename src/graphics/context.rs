@@ -5,9 +5,9 @@ use super::swapchain::Swapchain;
 
 pub struct Context {
     pub device: ash::Device,
-    pub swapchain: Swapchain,
     pub command_pool: vk::CommandPool,
     pub draw_command_buffer: vk::CommandBuffer,
+    pub graphics_queue: vk::Queue,
 }
 
 impl Context {
@@ -27,7 +27,9 @@ impl Context {
                         &vk::PhysicalDeviceFeatures::default().fill_mode_non_solid(true),
                     )
                     .push_next(
-                        &mut vk::PhysicalDeviceVulkan13Features::default().dynamic_rendering(true),
+                        &mut vk::PhysicalDeviceVulkan13Features::default()
+                            .dynamic_rendering(true)
+                            .synchronization2(true),
                     ),
                 None,
             )
@@ -53,13 +55,13 @@ impl Context {
         }
         .unwrap()[0];
 
-        let swapchain = Swapchain::new(&device, core, window, vk::SwapchainKHR::null());
+        let graphics_queue = unsafe { device.get_device_queue(0, 0) };
 
         Self {
             device,
-            swapchain,
             command_pool,
             draw_command_buffer,
+            graphics_queue,
         }
     }
 }

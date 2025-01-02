@@ -23,7 +23,7 @@ VertexOutput vertexMain(
 }
 
 [shader("fragment")]
-float4 fragmentMain(VertexOut input) : SV_Target
+float4 fragmentMain(VertexOutput input) : SV_Target
 {
     let color = float4(1.0, 0.0, 0.0, 1.0);
     return color;

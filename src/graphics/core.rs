@@ -1,7 +1,5 @@
-use std::ffi::CStr;
-
-use ash::{vk, Instance};
-use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use ash::vk;
+use winit::raw_window_handle::HasDisplayHandle;
 
 pub struct Core {
     pub entry: ash::Entry,

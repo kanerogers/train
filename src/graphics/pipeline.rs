@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use ash::vk;
 
-use super::context::Context;
+use super::{context::Context, swapchain::Drawable};
 
 pub struct Pipeline {
     handle: vk::Pipeline,
@@ -11,7 +11,7 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(context: Arc<Context>) -> Self {
+    pub fn new(context: Arc<Context>, format: vk::Format) -> Self {
         let device = &context.device;
 
         let layout = unsafe {
@@ -65,7 +65,7 @@ impl Pipeline {
                     .render_pass(vk::RenderPass::null())
                     .push_next(
                         &mut vk::PipelineRenderingCreateInfo::default()
-                            .color_attachment_formats(&[context.swapchain.format]),
+                            .color_attachment_formats(&[format]),
                     )],
                 None,
             )
@@ -79,7 +79,37 @@ impl Pipeline {
         }
     }
 
-    pub(crate) fn draw(&self) {}
+    pub(crate) fn draw(&self, drawable: Drawable) {
+        let device = &self.context.device;
+        let command_buffer = self.context.draw_command_buffer;
+        let render_area = drawable.extent;
+        unsafe {
+            device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.handle);
+            device.cmd_set_scissor(command_buffer, 0, &[render_area.into()]);
+            device.cmd_set_viewport(
+                command_buffer,
+                0,
+                &[vk::Viewport::default()
+                    .width(render_area.width as _)
+                    .height(render_area.height as _)],
+            );
+            device.cmd_begin_rendering(
+                command_buffer,
+                &vk::RenderingInfo::default()
+                    .render_area(render_area.into())
+                    .color_attachments(&[vk::RenderingAttachmentInfo::default()
+                        .image_view(drawable.view)
+                        .clear_value(vk::ClearValue {
+                            color: vk::ClearColorValue {
+                                float32: [1.0, 1.0, 1.0, 1.0],
+                            },
+                        })]),
+            );
+
+            device.cmd_draw(command_buffer, 6, 1, 0, 0);
+            device.cmd_end_rendering(command_buffer);
+        }
+    }
 }
 
 fn load_module(path: &str, context: &Context) -> vk::ShaderModule {
