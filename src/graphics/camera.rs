@@ -1,21 +1,17 @@
 use ash::vk;
 use dolly::prelude::{CameraRig, Position, Smooth, YawPitch};
-use glam::{Quat, Vec3};
+use glam::Quat;
 
 use crate::input::Input;
 
 #[derive(Debug)]
 pub struct Camera {
     rig: CameraRig,
-    pub movement_left: f32,
-    pub movement_right: f32,
-    pub movement_up: f32,
-    pub movement_down: f32,
-    pub movement_forward: f32,
-    pub movement_backward: f32,
-    pub boost: f32,
     pub extent: vk::Extent2D,
 }
+
+const MOVEMENT_SPEED: f32 = 10.;
+const LOOK_SPEED: f32 = 0.5;
 
 impl Camera {
     pub fn new(extent: vk::Extent2D) -> Camera {
@@ -26,30 +22,22 @@ impl Camera {
                 .with(YawPitch::new())
                 .with(Smooth::new_position_rotation(1.0, 1.0))
                 .build(),
-            movement_left: 0.,
-            movement_right: 0.,
-            movement_up: 0.,
-            movement_down: 0.,
-            movement_forward: 0.,
-            movement_backward: 0.,
-            boost: 0.,
             extent,
         }
     }
 
     pub(crate) fn update(&mut self, dt: f32, input: &Input) {
-        self.rig
-            .driver_mut::<YawPitch>()
-            .rotate_yaw_pitch(input.yaw_degrees, input.pitch_degrees);
+        self.rig.driver_mut::<YawPitch>().rotate_yaw_pitch(
+            input.yaw_degrees * LOOK_SPEED,
+            input.pitch_degrees * LOOK_SPEED,
+        );
 
         // simple fly-cam impl
-        let move_vec = Quat::from(self.rig.final_transform.rotation)
-            * input.get_movement().normalize_or_zero()
-            * 10.0f32.powf(self.boost);
+        let move_vec = Quat::from(self.rig.final_transform.rotation) * input.get_movement();
 
         self.rig
             .driver_mut::<Position>()
-            .translate(move_vec * dt * 10.);
+            .translate(move_vec * dt * MOVEMENT_SPEED);
         self.rig.update(dt);
     }
 

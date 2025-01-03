@@ -2,7 +2,9 @@ use ash::vk;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
 pub struct Swapchain {
+    #[allow(unused)]
     pub surface_handle: vk::SurfaceKHR,
+    #[allow(unused)]
     pub surface_fn: ash::khr::surface::Instance,
     pub swapchain_handle: vk::SwapchainKHR,
     pub swapchain_fn: ash::khr::swapchain::Device,
@@ -10,7 +12,6 @@ pub struct Swapchain {
     pub image_views: Vec<vk::ImageView>,
     pub extent: vk::Extent2D,
     pub format: vk::Format,
-    pub current_image_index: u32,
     image_available: vk::Semaphore,
 }
 
@@ -117,7 +118,6 @@ impl Swapchain {
             image_views,
             extent,
             format,
-            current_image_index: 0,
             image_available,
         }
     }

@@ -16,7 +16,6 @@ pub struct Renderer {
     pub context: Arc<Context>,
     pub fence: vk::Fence,
     pub rendering_complete: vk::Semaphore,
-    pub frame_index: u64,
     pub swapchain: Swapchain,
     pub depth_buffer: DepthBuffer,
 }
@@ -43,7 +42,6 @@ impl Renderer {
             pipeline,
             context,
             rendering_complete,
-            frame_index: 0,
             fence,
             swapchain,
             depth_buffer,
@@ -80,11 +78,25 @@ impl Renderer {
                 .unwrap()
         };
 
-        // Transition the depth buffer into the correct state
+        // Get a `Drawable` from the swapchain
+        let drawable = self.swapchain.get_drawable();
+
+        // Transition the rendering attachments into their correct state
         unsafe {
             device.cmd_pipeline_barrier2(
                 command_buffer,
                 &vk::DependencyInfo::default().image_memory_barriers(&[
+                    // Swapchain image
+                    vk::ImageMemoryBarrier2::default()
+                        .subresource_range(FULL_IMAGE)
+                        .image(drawable.image)
+                        .src_access_mask(vk::AccessFlags2::NONE)
+                        .src_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+                        .dst_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
+                        .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+                        .old_layout(vk::ImageLayout::UNDEFINED)
+                        .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL),
+                    // Depth buffer
                     vk::ImageMemoryBarrier2::default()
                         .subresource_range(DEPTH_RANGE)
                         .image(self.depth_buffer.image)
@@ -101,8 +113,7 @@ impl Renderer {
             );
         }
 
-        // Get a `Drawable` from the swapchain
-        self.swapchain.get_drawable()
+        drawable
     }
 
     fn end_rendering(&self, drawable: Drawable) {

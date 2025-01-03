@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{f32::consts::TAU, path::Path, sync::Arc};
 
 use ash::vk;
 
@@ -7,7 +7,6 @@ use super::{
     context::Context,
     depth_buffer::{DepthBuffer, DEPTH_FORMAT},
     swapchain::Drawable,
-    FULL_IMAGE,
 };
 
 pub struct Pipeline {
@@ -65,7 +64,7 @@ impl Pipeline {
                     .rasterization_state(
                         &vk::PipelineRasterizationStateCreateInfo::default()
                             .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
-                            .cull_mode(vk::CullModeFlags::NONE)
+                            .cull_mode(vk::CullModeFlags::BACK)
                             .polygon_mode(vk::PolygonMode::FILL)
                             .line_width(1.0),
                     )
@@ -110,23 +109,8 @@ impl Pipeline {
         let device = &self.context.device;
         let command_buffer = self.context.draw_command_buffer;
         let render_area = drawable.extent;
-        unsafe {
-            // First, transition the color attachment into the present state
-            device.cmd_pipeline_barrier2(
-                command_buffer,
-                &vk::DependencyInfo::default().image_memory_barriers(&[
-                    vk::ImageMemoryBarrier2::default()
-                        .subresource_range(FULL_IMAGE)
-                        .image(drawable.image)
-                        .src_access_mask(vk::AccessFlags2::NONE)
-                        .src_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
-                        .dst_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
-                        .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
-                        .old_layout(vk::ImageLayout::UNDEFINED)
-                        .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL),
-                ]),
-            );
 
+        unsafe {
             // Next, bind the pipeline and set the dynamic state
             device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.handle);
             device.cmd_set_scissor(command_buffer, 0, &[render_area.into()]);
@@ -169,33 +153,86 @@ impl Pipeline {
                         })]),
             );
 
-            let transform = glam::Affine3A::from_rotation_translation(
-                glam::Quat::from_rotation_x(90_f32.to_radians()),
+            self.draw_cube(device, command_buffer, camera, glam::Affine3A::from_scale_rotation_translation(
+                glam::Vec3::splat(10.),
+                glam::Quat::IDENTITY,
                 Default::default(),
-            );
+            ), [0.1, 1.0, 0.1, 1.0].into());
 
-            let registers = Registers {
-                ndc_from_local: camera.ndc_from_world() * transform,
-                colour: [0.1, 1.0, 0.1, 1.0].into(),
-            };
-
-            // Push constant!
-            device.cmd_push_constants(
-                command_buffer,
-                self.layout,
-                vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
-                0,
-                &std::slice::from_raw_parts(
-                    &registers as *const _ as *const u8,
-                    std::mem::size_of::<Registers>(),
-                ),
-            );
-
-            // Issue our draw commands
-            device.cmd_draw(command_buffer, 6, 1, 0, 0);
+            self.draw_cube(device, command_buffer, camera, glam::Affine3A::from_scale_rotation_translation(
+                glam::Vec3::splat(3.),
+                glam::Quat::IDENTITY,
+                [15.0, 0., 0.].into(),
+            ), [0.1, 1.0, 0.1, 1.0].into());
 
             // End rendering
             device.cmd_end_rendering(command_buffer);
+        }
+    }
+
+    fn draw_cube(
+        &self,
+        device: &ash::Device,
+        command_buffer: vk::CommandBuffer,
+        camera: &Camera,
+        transform: glam::Affine3A,
+        colour: glam::Vec4,
+    ) {
+        #[rustfmt::skip]
+        let transforms = [
+            // TOP
+            (
+                [0., 0.5, 0.], 
+                glam::Quat::from_rotation_x(-TAU / 4.),
+            ),
+            // BOTTOM
+            (
+                [0., -0.5, 0.],
+                glam::Quat::from_rotation_x(TAU / 4.),
+            ),
+            // LEFT
+            (
+                [-0.5, 0.0, 0.], 
+                glam::Quat::from_rotation_y(-TAU / 4.),
+            ),
+            // RIGHT
+            (
+                [0.5, 0.0, 0.], 
+                glam::Quat::from_rotation_y(TAU / 4.),
+            ),
+            // FRONT
+            (
+                [0.0, 0.0, 0.5], 
+                glam::Quat::IDENTITY
+            ),
+            // BACK
+            (
+                [0.0, 0.0, -0.5], 
+                glam::Quat::from_rotation_y(TAU / 2.),
+            ),
+        ];
+
+        for (translation, rotation) in transforms {
+            let registers = Registers {
+                ndc_from_local: camera.ndc_from_world()
+                    * transform
+                    * glam::Affine3A::from_rotation_translation(rotation, translation.into()),
+                colour,
+            };
+
+            unsafe {
+                device.cmd_push_constants(
+                    command_buffer,
+                    self.layout,
+                    vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    0,
+                    &std::slice::from_raw_parts(
+                        &registers as *const _ as *const u8,
+                        std::mem::size_of::<Registers>(),
+                    ),
+                );
+                device.cmd_draw(command_buffer, 6, 1, 0, 0);
+            }
         }
     }
 }

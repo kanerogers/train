@@ -18,9 +18,12 @@ mod renderer;
 mod swapchain;
 
 pub struct Graphics {
+    #[allow(unused)]
     core: Core,
+    #[allow(unused)]
     context: Arc<Context>,
     renderer: Renderer,
+    #[allow(unused)]
     window: winit::window::Window,
     pub camera: Camera,
 }

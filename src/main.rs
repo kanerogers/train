@@ -48,9 +48,7 @@ impl ApplicationHandler for App {
         event: winit::event::DeviceEvent,
     ) {
         match event {
-            DeviceEvent::MouseMotion {
-                delta: (pitch, yaw),
-            } => self.input.handle_mouse_motion(yaw, pitch),
+            DeviceEvent::MouseMotion { delta: (x, y) } => self.input.handle_mouse_motion(x, y),
             _ => {}
         }
     }

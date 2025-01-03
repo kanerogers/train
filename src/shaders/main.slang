@@ -17,12 +17,12 @@ VertexOutput vertexMain(
     uint vertexID: SV_VertexID)
 {
     static const float2[] positions = {
-        float2(-0.5, -0.5), // TOP LEFT
-        float2(-0.5, 0.5),  // BOTTOM LEFT
-        float2(0.5, -0.5),  // TOP RIGHT
-        float2(0.5, -0.5),  // TOP RIGHT
-        float2(-0.5, 0.5),  // BOTTOM LEFT
-        float2(0.5, 0.5),   // BOTTOM RIGHT
+        float2(-0.5, 0.5),  // TOP LEFT
+        float2(-0.5, -0.5), // BOTTOM LEFT
+        float2(0.5, 0.5),   // TOP RIGHT
+        float2(0.5, 0.5),   // TOP RIGHT
+        float2(-0.5, -0.5), // BOTTOM LEFT
+        float2(0.5, -0.5),  // BOTTOM RIGHT
     };
 
     float4 position = mul(registers.ndc_from_local, float4(positions[vertexID], 0.0, 1.0));

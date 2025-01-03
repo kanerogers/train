@@ -6,6 +6,7 @@ use super::{context::Context, swapchain::Swapchain};
 pub struct DepthBuffer {
     pub image: vk::Image,
     pub view: vk::ImageView,
+    #[allow(unused)]
     pub memory: vk::DeviceMemory,
 }
 

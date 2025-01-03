@@ -15,8 +15,6 @@ pub struct Input {
     pub yaw_degrees: f32,
 }
 
-const MOUSE_SPEED: f32 = 1.0;
-
 impl Input {
     pub fn reset(&mut self) {
         *self = Input::default();
@@ -41,16 +39,24 @@ impl Input {
             _ => {}
         }
     }
-    pub fn handle_mouse_motion(&mut self, yaw: f64, pitch: f64) {
-        self.pitch_degrees += pitch as f32 * MOUSE_SPEED;
-        self.yaw_degrees += yaw as f32 * MOUSE_SPEED;
+    pub fn handle_mouse_motion(&mut self, x: f64, y: f64) {
+        if x == 0. && y == 0. {
+            return;
+        }
+
+        println!("yaw: {x}, pitch: {y}");
+
+        self.pitch_degrees -= y as f32;
+        self.yaw_degrees -= x as f32;
     }
 
+    // Returns a normalised (or zero) vector of the movement for this frame
     pub fn get_movement(&self) -> glam::Vec3 {
         glam::Vec3::new(
             self.right - self.left,
             self.up - self.down,
             self.back - self.forward,
         )
+        .normalize_or_zero()
     }
 }

@@ -4,6 +4,7 @@ use super::core::Core;
 
 pub struct Context {
     pub device: ash::Device,
+    #[allow(unused)]
     pub command_pool: vk::CommandPool,
     pub draw_command_buffer: vk::CommandBuffer,
     pub graphics_queue: vk::Queue,
