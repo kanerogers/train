@@ -1,9 +1,11 @@
 mod graphics;
+mod input;
 
 use graphics::Graphics;
+use input::Input;
 use winit::{
     application::ApplicationHandler,
-    event::WindowEvent,
+    event::{DeviceEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::Window,
 };
@@ -11,6 +13,7 @@ use winit::{
 #[derive(Default)]
 struct App {
     graphics: Option<Graphics>,
+    input: Input,
 }
 
 impl ApplicationHandler for App {
@@ -31,6 +34,23 @@ impl ApplicationHandler for App {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
+            WindowEvent::KeyboardInput { event, .. } => {
+                self.input.handle_keyboard_event(event);
+            }
+            _ => {}
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        _: &winit::event_loop::ActiveEventLoop,
+        _: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
+        match event {
+            DeviceEvent::MouseMotion {
+                delta: (pitch, yaw),
+            } => self.input.handle_mouse_motion(yaw, pitch),
             _ => {}
         }
     }
@@ -40,7 +60,8 @@ impl ApplicationHandler for App {
             return;
         };
 
-        graphics.draw();
+        graphics.draw(&self.input);
+        self.input.reset();
     }
 }
 

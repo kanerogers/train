@@ -7,6 +7,8 @@ use context::Context;
 use renderer::Renderer;
 use swapchain::Swapchain;
 
+use crate::input::Input;
+
 mod camera;
 mod context;
 mod core;
@@ -20,7 +22,7 @@ pub struct Graphics {
     context: Arc<Context>,
     renderer: Renderer,
     window: winit::window::Window,
-    camera: Camera,
+    pub camera: Camera,
 }
 
 impl Graphics {
@@ -41,7 +43,8 @@ impl Graphics {
         }
     }
 
-    pub(crate) fn draw(&self) {
+    pub(crate) fn draw(&mut self, input: &Input) {
+        self.camera.update(1.0 / 60.0, input);
         self.renderer.draw(&self.camera);
     }
 }
