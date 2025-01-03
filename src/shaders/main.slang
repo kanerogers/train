@@ -1,19 +1,31 @@
-struct VertexOutput {
-    float4 position: SV_Position;
+struct VertexOutput
+{
+    float4 position : SV_Position;
 }
+
+struct Registers
+{
+    float4x4 ndc_from_local;
+    float4 colour;
+}
+
+[vk::push_constant]
+uniform Registers registers;
 
 [shader("vertex")]
 VertexOutput vertexMain(
-    uint vertexID: SV_VertexID
-)
+    uint vertexID: SV_VertexID)
 {
     static const float2[] positions = {
-        float2(0.0, -0.5),
-        float2(0.5, 0.5),
-        float2(-0.5, 0.5)
+        float2(-0.5, -0.5), // TOP LEFT
+        float2(-0.5, 0.5),  // BOTTOM LEFT
+        float2(0.5, -0.5),  // TOP RIGHT
+        float2(0.5, -0.5),  // TOP RIGHT
+        float2(-0.5, 0.5),  // BOTTOM LEFT
+        float2(0.5, 0.5),   // BOTTOM RIGHT
     };
 
-    float4 position = float4(positions[vertexID], 0.0, 1.0);
+    float4 position = mul(registers.ndc_from_local, float4(positions[vertexID], 0.0, 1.0));
 
     VertexOutput output = {
         position,
@@ -23,8 +35,9 @@ VertexOutput vertexMain(
 }
 
 [shader("fragment")]
-float4 fragmentMain(VertexOutput input) : SV_Target
+float4 fragmentMain(VertexOutput input)
+    : SV_Target
 {
-    let color = float4(1.0, 0.0, 0.0, 1.0);
+    let color = registers.colour;
     return color;
 }

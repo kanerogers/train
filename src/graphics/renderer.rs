@@ -3,7 +3,9 @@ use std::{sync::Arc, u64};
 use ash::vk::{self};
 
 use super::{
+    camera::Camera,
     context::Context,
+    depth_buffer::{DepthBuffer, DEPTH_RANGE},
     pipeline::Pipeline,
     swapchain::{Drawable, Swapchain},
     FULL_IMAGE,
@@ -16,6 +18,7 @@ pub struct Renderer {
     pub rendering_complete: vk::Semaphore,
     pub frame_index: u64,
     pub swapchain: Swapchain,
+    pub depth_buffer: DepthBuffer,
 }
 
 impl Renderer {
@@ -34,6 +37,8 @@ impl Renderer {
         }
         .unwrap();
 
+        let depth_buffer = DepthBuffer::new(&context, &swapchain);
+
         Self {
             pipeline,
             context,
@@ -41,12 +46,13 @@ impl Renderer {
             frame_index: 0,
             fence,
             swapchain,
+            depth_buffer,
         }
     }
 
-    pub(crate) fn draw(&self) {
+    pub(crate) fn draw(&self, camera: &Camera) {
         let drawable = self.begin_rendering();
-        self.pipeline.draw(drawable);
+        self.pipeline.draw(drawable, self.depth_buffer, camera);
         self.end_rendering(drawable);
         self.swapchain.present(
             drawable,
@@ -64,12 +70,35 @@ impl Renderer {
                 .wait_for_fences(&[self.fence], true, u64::MAX)
                 .unwrap();
             device.reset_fences(&[self.fence]).unwrap();
+        }
+
+        // Begin the command buffer
+        let command_buffer = self.context.draw_command_buffer;
+        unsafe {
             device
-                .begin_command_buffer(
-                    self.context.draw_command_buffer,
-                    &vk::CommandBufferBeginInfo::default(),
-                )
-                .unwrap();
+                .begin_command_buffer(command_buffer, &vk::CommandBufferBeginInfo::default())
+                .unwrap()
+        };
+
+        // Transition the depth buffer into the correct state
+        unsafe {
+            device.cmd_pipeline_barrier2(
+                command_buffer,
+                &vk::DependencyInfo::default().image_memory_barriers(&[
+                    vk::ImageMemoryBarrier2::default()
+                        .subresource_range(DEPTH_RANGE)
+                        .image(self.depth_buffer.image)
+                        .src_access_mask(vk::AccessFlags2::empty())
+                        .src_stage_mask(vk::PipelineStageFlags2::empty())
+                        .dst_access_mask(
+                            vk::AccessFlags2::DEPTH_STENCIL_ATTACHMENT_READ
+                                | vk::AccessFlags2::DEPTH_STENCIL_ATTACHMENT_WRITE,
+                        )
+                        .dst_stage_mask(vk::PipelineStageFlags2::EARLY_FRAGMENT_TESTS)
+                        .old_layout(vk::ImageLayout::UNDEFINED)
+                        .new_layout(vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL),
+                ]),
+            );
         }
 
         // Get a `Drawable` from the swapchain
@@ -99,8 +128,10 @@ impl Renderer {
                 ]),
             );
 
-            // Next, end the command buffer
+            // End the command buffer
             device.end_command_buffer(command_buffer).unwrap();
+
+            // Submit the work to the queue
             device
                 .queue_submit2(
                     queue,
