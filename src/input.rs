@@ -1,5 +1,5 @@
 use winit::{
-    event::KeyEvent,
+    event::{ElementState, KeyEvent},
     keyboard::{KeyCode, PhysicalKey},
 };
 
@@ -23,6 +23,7 @@ impl Input {
     pub fn handle_keyboard_event(&mut self, event: winit::event::KeyEvent) {
         let KeyEvent {
             physical_key: PhysicalKey::Code(key_code),
+            state: ElementState::Pressed,
             ..
         } = event
         else {
@@ -43,8 +44,6 @@ impl Input {
         if x == 0. && y == 0. {
             return;
         }
-
-        println!("yaw: {x}, pitch: {y}");
 
         self.pitch_degrees -= y as f32;
         self.yaw_degrees -= x as f32;

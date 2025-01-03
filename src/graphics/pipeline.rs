@@ -74,7 +74,8 @@ impl Pipeline {
                             .depth_test_enable(true)
                             .depth_compare_op(vk::CompareOp::GREATER_OR_EQUAL)
                             .stencil_test_enable(false)
-                            .depth_bounds_test_enable(false),
+                            .depth_bounds_test_enable(false)
+                            .max_depth_bounds(1.),
                     )
                     .color_blend_state(
                         &vk::PipelineColorBlendStateCreateInfo::default().attachments(&[
@@ -119,7 +120,8 @@ impl Pipeline {
                 0,
                 &[vk::Viewport::default()
                     .width(render_area.width as _)
-                    .height(render_area.height as _)],
+                    .height(render_area.height as _)
+                    .max_depth(1.)],
             );
 
             // Begin rendering
@@ -163,7 +165,7 @@ impl Pipeline {
                 glam::Vec3::splat(3.),
                 glam::Quat::IDENTITY,
                 [15.0, 0., 0.].into(),
-            ), [0.1, 1.0, 0.1, 1.0].into());
+            ), [1.0, 0.1, 0.1, 1.0].into());
 
             // End rendering
             device.cmd_end_rendering(command_buffer);
